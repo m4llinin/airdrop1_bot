@@ -39,7 +39,12 @@ async def get_connector(chat_id: int):
 
 async def connect_wallet(callback: CallbackQuery):
     global texts
-    await callback.message.edit_text(text=texts['connect'], reply_markup=await InlineKeyboard.list_wallets())
+    try:
+        await callback.message.edit_text(text=texts['connect'], reply_markup=await InlineKeyboard.list_wallets())
+    except:
+        await callback.message.delete()
+
+        await callback.message.answer(text=texts['connect'], reply_markup=await InlineKeyboard.list_wallets())
 
 
 async def connected_wallet(callback: CallbackQuery):
@@ -68,7 +73,7 @@ async def connected_wallet(callback: CallbackQuery):
     msg = await callback.message.answer_photo(photo=file,
                                               reply_markup=await InlineKeyboard.connect_kb(generated_url),
                                               caption=texts['time_connect'])
-    for i in range(1, 180):
+    for i in range(1, 5 * 60):
         await asyncio.sleep(1)
         if connector.connected:
             if connector.account.address:
