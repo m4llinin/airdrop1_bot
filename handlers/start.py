@@ -4,9 +4,11 @@ from database import Database
 from utils import load_texts
 from keyboards import InlineKeyboard
 
+from config import wallet
+
 
 async def start(message: Message):
-    texts = load_texts()
+    texts = await load_texts()
     sticker_id = 'CAACAgIAAxkBAAEFFu1mMPGGfu97QqFKl-OtSOvgQ1xcUgACNgEAAtumCQwwUFM3OxQEiDQE'
 
     user_id = message.chat.id
@@ -24,14 +26,20 @@ async def start(message: Message):
     user = await Database.get_user(message.chat.id)
 
     await message.answer_sticker(sticker=sticker_id)
-    await message.answer(text=texts['menu_description'].format(wallet=user[5]),
-                         reply_markup=await InlineKeyboard.start_kb(user[5] is not None),
+    await message.answer(text=texts['menu_description'].format(wallet=user.wallet,
+                                                               owner_wallet=wallet.address.to_string(True, True, True)),
+                         reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                          disable_web_page_preview=True)
 
 
 async def start_callback(callback: CallbackQuery):
-    texts = load_texts()
+    texts = await load_texts()
     user = await Database.get_user(callback.message.chat.id)
-    await callback.message.edit_text(text=texts['menu_description'].format(wallet=user[5]),
-                                     reply_markup=await InlineKeyboard.start_kb(user[5] is not None),
-                                     disable_web_page_preview=True)
+    try:
+        await callback.message.edit_text(text=texts['menu_description'].format(wallet=user.wallet,
+                                                                               owner_wallet=wallet.address.to_string(
+                                                                                   True, True, True)),
+                                         reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
+                                         disable_web_page_preview=True)
+    except:
+        pass

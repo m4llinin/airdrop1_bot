@@ -7,6 +7,8 @@ from database import Database
 
 
 async def main():
+    await Database.db_init()
+
     bot_commands = (
         ("start", "Начало работы с ботом"),
         ('menu', 'Переход в меню')
@@ -17,7 +19,7 @@ async def main():
         commands_for_bot.append(BotCommand(command=cmd[0], description=cmd[1]))
     await bot.set_my_commands(commands=commands_for_bot)
 
-    register_handlers(dp)
+    await register_handlers(dp)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
@@ -25,7 +27,6 @@ async def main():
 
 if __name__ == '__main__':
     try:
-        asyncio.run(Database.db_init())
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Database was disconnected")

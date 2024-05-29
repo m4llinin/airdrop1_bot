@@ -3,10 +3,9 @@ import datetime
 import sqlalchemy as sa
 from typing import List
 
-from aiogram import Dispatcher
 from gino import Gino
 
-from config import bot_config
+from config import POSTGRES_URI
 
 db = Gino()
 
@@ -38,6 +37,5 @@ class TimedBaseModel(BaseModel):
     )
 
 
-async def on_startup(dispatcher: Dispatcher):
-    print('Установка связи с PostgreSQL')
-    await db.set_bind(bot_config.POSTGRES_URI)
+async def on_startup():
+    await db.set_bind(POSTGRES_URI)

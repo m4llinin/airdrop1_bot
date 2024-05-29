@@ -7,13 +7,12 @@ from pytonconnect.storage import IStorage
 from pytonconnect import TonConnect
 from pytoniq_core import Address
 
-from config import MANIFEST_URL
+from config import MANIFEST_URL, wallet
 from database import Database
 from keyboards import InlineKeyboard
 from utils import load_texts
 
 storage = {}
-texts = load_texts()
 
 
 class TcStorage(IStorage):
@@ -38,32 +37,31 @@ async def get_connector(chat_id: int):
 
 
 async def connect_wallet(callback: CallbackQuery):
-    global texts
+    texts = await load_texts()
     try:
         await callback.message.edit_text(text=texts['connect'], reply_markup=await InlineKeyboard.list_wallets())
     except:
         await callback.message.delete()
-
         await callback.message.answer(text=texts['connect'], reply_markup=await InlineKeyboard.list_wallets())
 
 
 async def connected_wallet(callback: CallbackQuery):
-    global texts
+    texts = await load_texts()
     wallet_name = callback.data.split(':')[1]
     connector = await get_connector(callback.message.chat.id)
 
     wallets_list = connector.get_wallets()
-    wallet = None
+    wal = None
 
     for w in wallets_list:
         if w['name'] == wallet_name:
-            wallet = w
+            wal = w
 
-    if wallet is None:
+    if wal is None:
         await callback.message.edit_text(text=texts['not_found_wallet'])
         return
 
-    generated_url = await connector.connect(wallet)
+    generated_url = await connector.connect(wal)
     img = qrcode.make(generated_url)
     stream = BytesIO()
     img.save(stream)
@@ -84,8 +82,10 @@ async def connected_wallet(callback: CallbackQuery):
                 await msg.delete()
                 await callback.message.answer(text=texts['wallet_connected'].format(wallet=wallet_address))
                 user = await Database.get_user(callback.message.chat.id)
-                await callback.message.answer(text=texts['menu_description'].format(wallet=user[5]),
-                                              reply_markup=await InlineKeyboard.start_kb(user[5] is not None),
+                await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
+                                                                                    owner_wallet=wallet.address.to_string(
+                                                                                        True, True, True)),
+                                              reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                               disable_web_page_preview=True)
             return
     await msg.delete()
@@ -93,12 +93,21 @@ async def connected_wallet(callback: CallbackQuery):
 
 
 async def disconnect_wallet(callback: CallbackQuery):
-    connector = await get_connector(callback.message.chat.id)
-    await connector.restore_connection()
-    await connector.disconnect()
+    texts = await load_texts()
+
+    try:
+        connector = await get_connector(callback.message.chat.id)
+        await connector.restore_connection()
+        await connector.disconnect()
+    except:
+        pass
+
     await Database.update_wallet(callback.message.chat.id, None, 0)
     user = await Database.get_user(callback.message.chat.id)
     await callback.message.edit_text(text=texts['wallet_disconnected'])
-    await callback.message.answer(text=texts['menu_description'].format(wallet=user[5]),
-                                  reply_markup=await InlineKeyboard.start_kb(user[5] is not None),
+    await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
+                                                                        owner_wallet=wallet.address.to_string(True,
+                                                                                                              True,
+                                                                                                              True)),
+                                  reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                   disable_web_page_preview=True)
