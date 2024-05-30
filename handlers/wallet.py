@@ -84,7 +84,8 @@ async def connected_wallet(callback: CallbackQuery):
                 user = await Database.get_user(callback.message.chat.id)
                 await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
                                                                                     owner_wallet=wallet.address.to_string(
-                                                                                        True, True, True)),
+                                                                                        True, True, True),
+                                                                                    balance=user.balance),
                                               reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                               disable_web_page_preview=True)
             return
@@ -108,6 +109,7 @@ async def disconnect_wallet(callback: CallbackQuery):
     await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
                                                                         owner_wallet=wallet.address.to_string(True,
                                                                                                               True,
-                                                                                                              True)),
+                                                                                                              True),
+                                                                        balance=user.balance),
                                   reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                   disable_web_page_preview=True)

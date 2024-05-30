@@ -56,3 +56,7 @@ class Database:
     @classmethod
     async def update_users_airdrop(cls, airdrop_id: int, users: list[int]):
         await Airdrop.update.values(users_got=users).where(Airdrop.id == airdrop_id).gino.status()
+
+    @classmethod
+    async def update_balance(cls, user_id: int, amount: int):
+        await User.update.values(balance=amount).where(User.user_id == user_id).gino.status()

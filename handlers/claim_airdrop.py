@@ -1,30 +1,12 @@
 from aiogram.types import CallbackQuery
-from tonsdk.utils import to_nano
 
 from database import Database
 from datetime import datetime
-from config import TIMEZONE, ton_config, keystore_dir, wallet, logger
+from config import TIMEZONE, logger, wallet
 from database.schemas.airdrop import Airdrop
 from database.schemas.user import User
+from keyboards import InlineKeyboard
 from utils import load_texts
-
-from pytonlib import TonlibClient
-
-
-async def transaction(user: User, airdrop: Airdrop):
-    client = TonlibClient(ls_index=0, config=ton_config, keystore=keystore_dir)
-    await client.init()
-
-    # init_query = wallet.create_init_external_message()
-    # await client.raw_send_message(init_query['message'].to_boc(False))
-
-    seqno = int((await client.raw_run_method(method='seqno', stack_data=[],
-                                             address=wallet.address.to_string(True, True, True)))['stack'][0][1], 16)
-
-    transfer = wallet.create_transfer_message(to_addr=user.wallet, amount=to_nano(airdrop.amount, 'ton'),
-                                              seqno=seqno, payload="Airdrop bot")
-    await client.raw_send_message(transfer['message'].to_boc(False))
-    await client.close()
 
 
 async def check_participation(callback: CallbackQuery, user: User, airdrop: Airdrop, texts: dict):
@@ -33,9 +15,19 @@ async def check_participation(callback: CallbackQuery, user: User, airdrop: Aird
         claimed_users = []
 
     if not (user.user_id in claimed_users) and len(claimed_users) < airdrop.max_count_users:
-        await transaction(user, airdrop)
+        await Database.update_balance(user.user_id, user.balance + airdrop.amount)
         claimed_users.append(user.user_id)
         await Database.update_users_airdrop(airdrop.id, claimed_users)
+
+        new_user = await Database.get_user(user.user_id)
+        await callback.message.edit_text(text=texts['menu_description'].format(wallet=new_user.wallet,
+                                                                               owner_wallet=wallet.address.to_string(
+                                                                                   True, True,
+                                                                                   True),
+                                                                               balance=new_user.balance),
+                                         reply_markup=await InlineKeyboard.start_kb(new_user.wallet is not None),
+                                         disable_web_page_preview=True)
+
         await callback.answer(text=texts["successful_airdrop"].format(amount=airdrop.amount), show_alert=True)
         return
     elif user.user_id in claimed_users:
