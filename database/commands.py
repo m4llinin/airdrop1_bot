@@ -58,5 +58,5 @@ class Database:
         await Airdrop.update.values(users_got=users).where(Airdrop.id == airdrop_id).gino.status()
 
     @classmethod
-    async def update_balance(cls, user_id: int, amount: int):
+    async def update_balance(cls, user_id: int, amount: int | float):
         await User.update.values(balance=amount).where(User.user_id == user_id).gino.status()

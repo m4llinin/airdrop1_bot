@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String, sql
+from sqlalchemy import Column, BigInteger, Integer, String, sql, Float
 from database.db_gino import TimedBaseModel
 
 
@@ -8,7 +8,7 @@ class User(TimedBaseModel):
     referral_id = Column(BigInteger, default=None)
     level_1 = Column(Integer, default=0)
     level_2 = Column(Integer, default=0)
-    balance = Column(Integer, default=0)
+    balance = Column(Float, default=0)
     wallet = Column(String, default=None)
     wallet_verif = Column(Integer, default=0)
 

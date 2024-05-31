@@ -12,6 +12,11 @@ from tonsdk.utils import from_nano
 async def payment(callback: CallbackQuery):
     texts = await load_texts()
     user = await Database.get_user(callback.message.chat.id)
+
+    if user.balance == 0:
+        await callback.answer(text=texts['zero_balance'], show_alert=True)
+        return
+
     transfer_fee = user.balance * 0.005
     await callback.message.edit_text(text=texts['wait_payment'].format(fee=transfer_fee,
                                                                        owner_wallet=wallet.address.to_string(True, True,
@@ -31,15 +36,15 @@ async def check_payment(callback: CallbackQuery):
 
     if last_transaction:
         last_transaction = last_transaction[0]['in_msg']
-        if last_transaction['source'] == user.wallet and \
-                last_transaction['destination'] == wallet.address.to_string(True, True, True) and \
-                from_nano(int(last_transaction['value']), 'ton') == user.balance * 0.005:
+        if (last_transaction['destination'] == wallet.address.to_string(True, True, True) and
+            from_nano(int(last_transaction['value']), 'ton') == user.balance * 0.005):
+
             await transaction(user, user.balance)
             await Database.update_balance(user.user_id, 0)
             await callback.message.edit_text(text=texts['menu_description'].format(wallet=user.wallet,
                                                                                    owner_wallet=wallet.address.to_string(
                                                                                        True, True, True),
-                                                                                   balance=user.balance),
+                                                                                   balance=0),
                                              reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                              disable_web_page_preview=True)
             await callback.answer(text=texts['successful_payment'], show_alert=True)
