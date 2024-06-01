@@ -7,7 +7,7 @@ class Airdrop(TimedBaseModel):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     start_date = Column(String, nullable=False)
     end_date = Column(String, default=None)
-    amount = Column(Float, nullable=False)
+    amount = Column(Float)
     max_count_users = Column(Integer, nullable=False)
     users_got = Column(ARRAY(Integer), default=[])
     jetton_wallet = Column(String, default=None)

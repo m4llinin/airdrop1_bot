@@ -7,7 +7,7 @@ from pytonconnect.storage import IStorage
 from pytonconnect import TonConnect
 from pytoniq_core import Address
 
-from config import MANIFEST_URL, wallet
+from config import MANIFEST_URL, wallet, LINK
 from database import Database
 from keyboards import InlineKeyboard
 from utils import load_texts
@@ -82,11 +82,14 @@ async def connected_wallet(callback: CallbackQuery):
                 await msg.delete()
                 await callback.message.answer(text=texts['wallet_connected'].format(wallet=wallet_address))
                 user = await Database.get_user(callback.message.chat.id)
-                await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                    owner_wallet=wallet.address.to_string(
-                                                                                        True, True, True)),
-                                              reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
-                                              disable_web_page_preview=True)
+                await callback.message.answer(
+                    text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                          wallet=user.wallet,
+                                                          tokens=user.balance, level_1=user.level_1,
+                                                          level_2=user.level_2),
+                    reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                               LINK.format(callback.message.chat.id)),
+                    disable_web_page_preview=True)
             return
     await msg.delete()
     await callback.message.answer(text=texts['timeout_error'], reply_markup=await InlineKeyboard.list_wallets())
@@ -105,9 +108,10 @@ async def disconnect_wallet(callback: CallbackQuery):
     await Database.update_wallet(callback.message.chat.id, None, 0, None)
     user = await Database.get_user(callback.message.chat.id)
     await callback.message.edit_text(text=texts['wallet_disconnected'])
-    await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                        owner_wallet=wallet.address.to_string(True,
-                                                                                                              True,
-                                                                                                              True)),
-                                  reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
+    await callback.message.answer(text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                                        wallet=user.wallet,
+                                                                        tokens=user.balance, level_1=user.level_1,
+                                                                        level_2=user.level_2),
+                                  reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                             LINK.format(callback.message.chat.id)),
                                   disable_web_page_preview=True)

@@ -24,11 +24,11 @@ class Database:
     async def update_referrals(cls, user_id: int, level: int, tokens: int):
         user = await cls.get_user(user_id)
         if level == 1:
-            await User.update.values(level_1=user.level_1 + 1, tokens=user.tokens + tokens).where(
-                User.user_id == user_id).gino.apply()
+            await User.update.values(level_1=user.level_1 + 1, balance=user.balance + tokens).where(
+                User.user_id == user_id).gino.status()
         elif level == 2:
-            await User.update.values(level_2=user.level_2 + 1, tokens=user.tokens + tokens).where(
-                User.user_id == user_id).gino.apply()
+            await User.update.values(level_2=user.level_2 + 1, balance=user.balance + tokens).where(
+                User.user_id == user_id).gino.status()
 
         if user.referral_id and level == 1:
             await cls.update_referrals(user.referral_id, 2, SECOND_LEVEL_REFERRAL_TOKENS)

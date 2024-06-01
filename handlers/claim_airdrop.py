@@ -6,10 +6,9 @@ from pytonconnect.exceptions import UserRejectsError
 from aiogram.types import CallbackQuery, Message
 from tonsdk.utils import to_nano
 
-from aiogram.exceptions import TelegramBadRequest
 from database import Database
 from datetime import datetime
-from config import TIMEZONE, logger, wallet, bot, MAIN_CHANNEL_ID, SECOND_CHANNEL_ID
+from config import TIMEZONE, logger, wallet, LINK
 from database.schemas.airdrop import Airdrop
 from database.schemas.user import User
 from handlers.wallet import get_connector
@@ -23,7 +22,7 @@ async def payment(callback: CallbackQuery, texts: dict, user: User, airdrop: Air
     if not connected:
         raise ImportWarning
 
-    transfer_fee = 0.05 if airdrop.jetton_wallet else airdrop.amount * 0.05
+    transfer_fee = 0.05 if airdrop.jetton_wallet else user.balance * 0.005
     cur_transaction = {
         'valid_until': int(time.time() + 15 * 60),
         'messages': [await get_comment_message(destination_address=wallet.address.to_string(),
@@ -33,7 +32,7 @@ async def payment(callback: CallbackQuery, texts: dict, user: User, airdrop: Air
 
     name = airdrop.jetton_name if airdrop.jetton_name else "TON"
     call = await callback.message.edit_text(text=texts['wait_payment'].format(fee=transfer_fee,
-                                                                              amount=airdrop.amount,
+                                                                              amount=user.balance,
                                                                               name=name),
                                             reply_markup=await InlineKeyboard.payment(user.wallet_provider))
     await state.update_data(cl=call)
@@ -47,12 +46,14 @@ async def check_participation(message: Message, user: User, airdrop: Airdrop, te
         claimed_users = []
 
     if not (user.user_id in claimed_users) and len(claimed_users) < airdrop.max_count_users:
-        await transaction(user, airdrop.amount, airdrop.jetton_wallet)
+        await transaction(user, user.balance, airdrop.jetton_wallet)
         claimed_users.append(user.user_id)
         await Database.update_users_airdrop(airdrop.id, claimed_users)
+        await Database.update_balance(user.user_id, 0)
 
         name = airdrop.jetton_name if airdrop.jetton_name else "TON"
-        await message.edit_text(text=texts["successful_airdrop"].format(amount=airdrop.amount, name=name))
+        await message.edit_text(
+            text=texts["successful_airdrop"].format(amount=user.balance, name=name))
     elif user.user_id in claimed_users:
         await message.edit_text(text=texts["completed_airdrop"])
     elif len(claimed_users) >= airdrop.max_count_users:
@@ -60,34 +61,24 @@ async def check_participation(message: Message, user: User, airdrop: Airdrop, te
     else:
         await message.edit_text(text=texts["no_server"])
 
-    await message.answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                               owner_wallet=wallet.address.to_string(
-                                                                   True, True, True)),
-                         reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
+    user = await Database.get_user(user.user_id)
+
+    await message.answer(text=texts['menu_description'].format(link=LINK.format(message.chat.id), wallet=user.wallet,
+                                                               tokens=user.balance, level_1=user.level_1,
+                                                               level_2=user.level_2),
+                         reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                    LINK.format(message.chat.id)),
                          disable_web_page_preview=True)
 
 
 async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
     texts = await load_texts()
+    user = await Database.get_user(callback.message.chat.id)
 
-    # Проверка подписки
-    try:
-        main_channel_status = await bot.get_chat_member(chat_id=MAIN_CHANNEL_ID, user_id=callback.message.chat.id)
-        second_channel_status = await bot.get_chat_member(chat_id=SECOND_CHANNEL_ID, user_id=callback.message.chat.id)
-        if main_channel_status.status == 'left' or second_channel_status.status == 'left':
-            try:
-                await callback.message.edit_text(text=texts['not_subscribed'],
-                                                 reply_markup=await InlineKeyboard.subscribe_kb())
-            except:
-                pass
-            return
-    except TelegramBadRequest:
-        await callback.message.edit_text(text=texts['not_subscribed'],
-                                         reply_markup=await InlineKeyboard.subscribe_kb())
+    if user.balance == 0:
+        await callback.answer(text=texts['zero_balance'], show_alert=True)
         return
 
-    # Проверка, чтобы был привязан кошелек
-    user = await Database.get_user(callback.message.chat.id)
     airdrops = await Database.get_airdrops()
     now = datetime.now(tz=TIMEZONE).timestamp()
     for airdrop in airdrops:
@@ -101,35 +92,38 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
                     except asyncio.TimeoutError:
                         data = await state.get_data()
                         await data["cl"].edit_text(text=texts['timeout_airdrop'])
-                        await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                      owner_wallet=wallet.address.to_string(
-                                                                                          True, True,
-                                                                                          True)),
-                                                reply_markup=await InlineKeyboard.start_kb(
-                                                    user.wallet is not None),
-                                                disable_web_page_preview=True)
+                        await data["cl"].answer(
+                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                                  wallet=user.wallet,
+                                                                  tokens=user.balance, level_1=user.level_1,
+                                                                  level_2=user.level_2),
+                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                       LINK.format(callback.message.chat.id)),
+                            disable_web_page_preview=True)
                         return
                     except UserRejectsError:
                         data = await state.get_data()
                         await data["cl"].edit_text(text=texts['user_rejects'])
-                        await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                      owner_wallet=wallet.address.to_string(
-                                                                                          True, True,
-                                                                                          True)),
-                                                reply_markup=await InlineKeyboard.start_kb(
-                                                    user.wallet is not None),
-                                                disable_web_page_preview=True)
+                        await data["cl"].answer(
+                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                                  wallet=user.wallet,
+                                                                  tokens=user.balance, level_1=user.level_1,
+                                                                  level_2=user.level_2),
+                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                       LINK.format(callback.message.chat.id)),
+                            disable_web_page_preview=True)
                         return
                     except ImportWarning:
                         data = await state.get_data()
                         await data["cl"].edit_text(text=texts['wallet_not_verified'], show_alert=True)
-                        await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                      owner_wallet=wallet.address.to_string(
-                                                                                          True, True,
-                                                                                          True)),
-                                                reply_markup=await InlineKeyboard.start_kb(
-                                                    user.wallet is not None),
-                                                disable_web_page_preview=True)
+                        await data["cl"].answer(
+                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                                  wallet=user.wallet,
+                                                                  tokens=user.balance, level_1=user.level_1,
+                                                                  level_2=user.level_2),
+                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                       LINK.format(callback.message.chat.id)),
+                            disable_web_page_preview=True)
                         return
 
                     data = await state.get_data()
@@ -143,35 +137,38 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
                 except asyncio.TimeoutError:
                     data = await state.get_data()
                     await data["cl"].edit_text(text=texts['timeout_airdrop'])
-                    await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                  owner_wallet=wallet.address.to_string(
-                                                                                      True, True,
-                                                                                      True)),
-                                            reply_markup=await InlineKeyboard.start_kb(
-                                                user.wallet is not None),
-                                            disable_web_page_preview=True)
+                    await data["cl"].answer(
+                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                              wallet=user.wallet,
+                                                              tokens=user.balance, level_1=user.level_1,
+                                                              level_2=user.level_2),
+                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                   LINK.format(callback.message.chat.id)),
+                        disable_web_page_preview=True)
                     return
                 except UserRejectsError:
                     data = await state.get_data()
                     await data["cl"].edit_text(text=texts['user_rejects'])
-                    await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                  owner_wallet=wallet.address.to_string(
-                                                                                      True, True,
-                                                                                      True)),
-                                            reply_markup=await InlineKeyboard.start_kb(
-                                                user.wallet is not None),
-                                            disable_web_page_preview=True)
+                    await data["cl"].answer(
+                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                              wallet=user.wallet,
+                                                              tokens=user.balance, level_1=user.level_1,
+                                                              level_2=user.level_2),
+                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                   LINK.format(callback.message.chat.id)),
+                        disable_web_page_preview=True)
                     return
                 except ImportWarning:
                     data = await state.get_data()
                     await data["cl"].edit_text(text=texts['wallet_not_verified'], show_alert=True)
-                    await data["cl"].answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                                  owner_wallet=wallet.address.to_string(
-                                                                                      True, True,
-                                                                                      True)),
-                                            reply_markup=await InlineKeyboard.start_kb(
-                                                user.wallet is not None),
-                                            disable_web_page_preview=True)
+                    await data["cl"].answer(
+                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                              wallet=user.wallet,
+                                                              tokens=user.balance, level_1=user.level_1,
+                                                              level_2=user.level_2),
+                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                                   LINK.format(callback.message.chat.id)),
+                        disable_web_page_preview=True)
                     return
 
                 data = await state.get_data()
@@ -183,12 +180,14 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
             await callback.answer(text=texts["no_server"], show_alert=True)
 
     try:
-        await callback.message.edit_text(text=texts['menu_description'].format(wallet=user.wallet,
-                                                                               owner_wallet=wallet.address.to_string(
-                                                                                   True, True,
-                                                                                   True)),
-                                         reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
-                                         disable_web_page_preview=True)
+        await callback.message.edit_text(
+            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                                  wallet=user.wallet,
+                                                  tokens=user.balance, level_1=user.level_1,
+                                                  level_2=user.level_2),
+            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                       LINK.format(callback.message.chat.id)),
+            disable_web_page_preview=True)
     except:
         pass
 
