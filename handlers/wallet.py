@@ -70,22 +70,21 @@ async def connected_wallet(callback: CallbackQuery):
     await callback.message.delete()
     msg = await callback.message.answer_photo(photo=file,
                                               reply_markup=await InlineKeyboard.connect_kb(generated_url),
-                                              caption=texts['time_connect'])
+                                              caption=texts['time_connect'].format(wal_name=wallet_name))
     for i in range(1, 5 * 60):
         await asyncio.sleep(1)
         if connector.connected:
             if connector.account.address:
                 wallet_address = connector.account.address
                 wallet_address = Address(wallet_address).to_str(is_bounceable=False)
-                await Database.update_wallet(callback.message.chat.id, wallet_address, 1)
+                await Database.update_wallet(callback.message.chat.id, wallet_address, 1, wallet_name)
 
                 await msg.delete()
                 await callback.message.answer(text=texts['wallet_connected'].format(wallet=wallet_address))
                 user = await Database.get_user(callback.message.chat.id)
                 await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
                                                                                     owner_wallet=wallet.address.to_string(
-                                                                                        True, True, True),
-                                                                                    balance=user.balance),
+                                                                                        True, True, True)),
                                               reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                               disable_web_page_preview=True)
             return
@@ -103,13 +102,12 @@ async def disconnect_wallet(callback: CallbackQuery):
     except:
         pass
 
-    await Database.update_wallet(callback.message.chat.id, None, 0)
+    await Database.update_wallet(callback.message.chat.id, None, 0, None)
     user = await Database.get_user(callback.message.chat.id)
     await callback.message.edit_text(text=texts['wallet_disconnected'])
     await callback.message.answer(text=texts['menu_description'].format(wallet=user.wallet,
                                                                         owner_wallet=wallet.address.to_string(True,
                                                                                                               True,
-                                                                                                              True),
-                                                                        balance=user.balance),
+                                                                                                              True)),
                                   reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                   disable_web_page_preview=True)

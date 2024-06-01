@@ -46,8 +46,9 @@ class Database:
                 await cls.update_referrals(referral_id, 1, INITIAL_REFERRAL_TOKENS)
 
     @classmethod
-    async def update_wallet(cls, user_id: int, wallet: str | None, wallet_verif: int):
-        await User.update.values(wallet=wallet, wallet_verif=wallet_verif).where(User.user_id == user_id).gino.status()
+    async def update_wallet(cls, user_id: int, wallet: str | None, wallet_verif: int, wallet_provider: str | None):
+        await User.update.values(wallet=wallet, wallet_verif=wallet_verif, wallet_provider=wallet_provider).where(
+            User.user_id == user_id).gino.status()
 
     @classmethod
     async def get_airdrops(cls):

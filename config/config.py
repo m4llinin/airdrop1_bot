@@ -30,6 +30,9 @@ MANIFEST_URL = env['MANIFEST_URL']
 MNEMONICS = env['MNEMONICS'].split(",")
 TIMEZONE = pytz.timezone('Europe/Moscow')
 
+MAIN_CHANNEL_ID = env['MAIN_CHANNEL_ID']
+SECOND_CHANNEL_ID = env['SECOND_CHANNEL_ID']
+
 POSTGRES_URI = f"postgresql://{env['DATABASE_USER']}:{env['DATABASE_PASS']}@{env['DATABASE_HOST']}/{env['DATABASE_NAME']}"
 
 bot = Bot(token=BOT_API_TOKEN, parse_mode=ParseMode.HTML)

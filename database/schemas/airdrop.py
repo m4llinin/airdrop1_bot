@@ -10,5 +10,7 @@ class Airdrop(TimedBaseModel):
     amount = Column(Float, nullable=False)
     max_count_users = Column(Integer, nullable=False)
     users_got = Column(ARRAY(Integer), default=[])
+    jetton_wallet = Column(String, default=None)
+    jetton_name = Column(String, default=None)
 
     query: sql.select

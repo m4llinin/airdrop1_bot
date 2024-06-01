@@ -27,8 +27,7 @@ async def start(message: Message):
 
     await message.answer_sticker(sticker=sticker_id)
     await message.answer(text=texts['menu_description'].format(wallet=user.wallet,
-                                                               owner_wallet=wallet.address.to_string(True, True, True),
-                                                               balance=user.balance),
+                                                               owner_wallet=wallet.address.to_string(True, True, True)),
                          reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                          disable_web_page_preview=True)
 
@@ -36,11 +35,11 @@ async def start(message: Message):
 async def start_callback(callback: CallbackQuery):
     texts = await load_texts()
     user = await Database.get_user(callback.message.chat.id)
+
     try:
         await callback.message.edit_text(text=texts['menu_description'].format(wallet=user.wallet,
                                                                                owner_wallet=wallet.address.to_string(
-                                                                                   True, True, True),
-                                                                               balance=user.balance),
+                                                                                   True, True, True)),
                                          reply_markup=await InlineKeyboard.start_kb(user.wallet is not None),
                                          disable_web_page_preview=True)
     except:
