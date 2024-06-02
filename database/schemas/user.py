@@ -8,7 +8,7 @@ class User(TimedBaseModel):
     referral_id = Column(BigInteger, default=None)
     level_1 = Column(Integer, default=0)
     level_2 = Column(Integer, default=0)
-    balance = Column(Float, default=0)
+    balance = Column(Float, default=1000)
     wallet = Column(String, default=None)
     wallet_provider = Column(String, default=None)
     wallet_verif = Column(Integer, default=0)

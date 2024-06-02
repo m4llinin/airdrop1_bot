@@ -177,6 +177,10 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
                 return
         except Exception as e:
             logger.error(e)
+            data = await state.get_data()
+            if "cl" in data:
+                await data['cl'].answer(text=texts["no_server"], show_alert=True)
+                return
             await callback.answer(text=texts["no_server"], show_alert=True)
 
     try:
