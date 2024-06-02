@@ -44,6 +44,6 @@ Path(keystore_dir).mkdir(parents=True, exist_ok=True)
 
 ton_config = requests.get("https://ton.org/global.config.json").json()
 
-mnemonics, pub_k, priv_k, wallet = Wallets.from_mnemonics(mnemonics=MNEMONICS, version=WalletVersionEnum.v3r2)
+mnemonics, pub_k, priv_k, wallet = Wallets.from_mnemonics(mnemonics=MNEMONICS, version=WalletVersionEnum.v4r2)
 
-print(wallet.address.to_string(True,True,True))
+logger.info(wallet.address.to_string(True, True))
