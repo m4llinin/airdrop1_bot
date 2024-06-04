@@ -22,7 +22,7 @@ async def payment(callback: CallbackQuery, texts: dict, user: User, airdrop: Air
     if not connected:
         raise ImportWarning
 
-    transfer_fee = 0.05 if airdrop.jetton_wallet else user.balance * 0.005
+    transfer_fee = 0.07 if airdrop.jetton_wallet else user.balance * 0.005
     cur_transaction = {
         'valid_until': int(time.time() + 15 * 60),
         'messages': [await get_comment_message(destination_address=wallet.address.to_string(),
@@ -71,6 +71,31 @@ async def check_participation(message: Message, user: User, airdrop: Airdrop, te
                          disable_web_page_preview=True)
 
 
+async def pay_fee(callback: CallbackQuery, texts: dict, user: User, airdrop: Airdrop, state: FSMContext) -> bool:
+    try:
+        await payment(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
+        return True
+    except asyncio.TimeoutError:
+        data = await state.get_data()
+        await data["cl"].edit_text(text=texts['timeout_airdrop'])
+    except UserRejectsError:
+        data = await state.get_data()
+        await data["cl"].edit_text(text=texts['user_rejects'])
+    except ImportWarning:
+        await callback.answer(text=texts['wallet_not_verified'], show_alert=True)
+        return False
+
+    await data["cl"].answer(
+        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
+                                              wallet=user.wallet,
+                                              tokens=user.balance, level_1=user.level_1,
+                                              level_2=user.level_2),
+        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
+                                                   LINK.format(callback.message.chat.id)),
+        disable_web_page_preview=True)
+    return False
+
+
 async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
     texts = await load_texts()
     user = await Database.get_user(callback.message.chat.id)
@@ -86,113 +111,23 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
             if airdrop.end_date:
                 if datetime.strptime(airdrop.start_date, "%H:%M %d.%m.%Y").timestamp() <= now <= datetime.strptime(
                         airdrop.end_date, "%H:%M %d.%m.%Y").timestamp():
-                    # Оплата комиссии
-                    try:
-                        await payment(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
-                    except asyncio.TimeoutError:
+                    is_paid_fee = await pay_fee(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
+                    if is_paid_fee:
                         data = await state.get_data()
-                        await data["cl"].edit_text(text=texts['timeout_airdrop'])
-                        await data["cl"].answer(
-                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                                  wallet=user.wallet,
-                                                                  tokens=user.balance, level_1=user.level_1,
-                                                                  level_2=user.level_2),
-                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                       LINK.format(callback.message.chat.id)),
-                            disable_web_page_preview=True)
+                        await check_participation(data['cl'], user, airdrop, texts)
                         return
-                    except UserRejectsError:
-                        data = await state.get_data()
-                        await data["cl"].edit_text(text=texts['user_rejects'])
-                        await data["cl"].answer(
-                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                                  wallet=user.wallet,
-                                                                  tokens=user.balance, level_1=user.level_1,
-                                                                  level_2=user.level_2),
-                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                       LINK.format(callback.message.chat.id)),
-                            disable_web_page_preview=True)
-                        return
-                    except ImportWarning:
-                        data = await state.get_data()
-                        await data["cl"].edit_text(text=texts['wallet_not_verified'], show_alert=True)
-                        await data["cl"].answer(
-                            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                                  wallet=user.wallet,
-                                                                  tokens=user.balance, level_1=user.level_1,
-                                                                  level_2=user.level_2),
-                            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                       LINK.format(callback.message.chat.id)),
-                            disable_web_page_preview=True)
-                        return
-
+            elif datetime.strptime(airdrop.start_date, "%H:%M %d.%m.%Y").timestamp() == now:
+                is_paid_fee = await pay_fee(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
+                if is_paid_fee:
                     data = await state.get_data()
-                    # claim airdrop
                     await check_participation(data['cl'], user, airdrop, texts)
                     return
-            elif datetime.strptime(airdrop.start_date, "%H:%M %d.%m.%Y").timestamp() == now:
-                # Оплата комиссии
-                try:
-                    await payment(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
-                except asyncio.TimeoutError:
-                    data = await state.get_data()
-                    await data["cl"].edit_text(text=texts['timeout_airdrop'])
-                    await data["cl"].answer(
-                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                              wallet=user.wallet,
-                                                              tokens=user.balance, level_1=user.level_1,
-                                                              level_2=user.level_2),
-                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                   LINK.format(callback.message.chat.id)),
-                        disable_web_page_preview=True)
-                    return
-                except UserRejectsError:
-                    data = await state.get_data()
-                    await data["cl"].edit_text(text=texts['user_rejects'])
-                    await data["cl"].answer(
-                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                              wallet=user.wallet,
-                                                              tokens=user.balance, level_1=user.level_1,
-                                                              level_2=user.level_2),
-                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                   LINK.format(callback.message.chat.id)),
-                        disable_web_page_preview=True)
-                    return
-                except ImportWarning:
-                    data = await state.get_data()
-                    await data["cl"].edit_text(text=texts['wallet_not_verified'], show_alert=True)
-                    await data["cl"].answer(
-                        text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                              wallet=user.wallet,
-                                                              tokens=user.balance, level_1=user.level_1,
-                                                              level_2=user.level_2),
-                        reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                                   LINK.format(callback.message.chat.id)),
-                        disable_web_page_preview=True)
-                    return
-
-                data = await state.get_data()
-                # claim airdrop
-                await check_participation(data['cl'], user, airdrop, texts)
-                return
         except Exception as e:
             logger.error(e)
-            data = await state.get_data()
-            if "cl" in data:
-                await data['cl'].answer(text=texts["no_server"], show_alert=True)
+            msg = (await state.get_data()).get("cl", callback)
+            if isinstance(msg, CallbackQuery):
+                await msg.answer(text=texts['no_server'], show_alert=True)
                 return
-            await callback.answer(text=texts["no_server"], show_alert=True)
-
-    try:
-        await callback.message.edit_text(
-            text=texts['menu_description'].format(link=LINK.format(callback.message.chat.id),
-                                                  wallet=user.wallet,
-                                                  tokens=user.balance, level_1=user.level_1,
-                                                  level_2=user.level_2),
-            reply_markup=await InlineKeyboard.start_kb(user.wallet is not None,
-                                                       LINK.format(callback.message.chat.id)),
-            disable_web_page_preview=True)
-    except:
-        pass
-
+            await msg.answer(text=texts['no_server'])
+            return
     await callback.answer(text=texts['no_airdrop'], show_alert=True)

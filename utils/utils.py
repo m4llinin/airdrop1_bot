@@ -1,13 +1,9 @@
-import asyncio
 import json
 from base64 import urlsafe_b64encode
 
 from pytoniq_core import begin_cell
-from pytonlib import TonlibClient
-from tonsdk.contract.token.ft import JettonWallet
-from tonsdk.utils import to_nano, Address
-
-from config import ton_config, keystore_dir, wallet
+from TonTools import Wallet, TonCenterClient
+from config.config import mnemonics, TONCENTER_API
 from database.schemas.user import User
 
 
@@ -18,28 +14,16 @@ async def load_texts(language: str = 'ru'):
 
 
 async def transaction(user: User, amount: float, jetton_address: str = None):
-    client = TonlibClient(ls_index=0, config=ton_config, keystore=keystore_dir)
-    await client.init()
-
-    body = f"From airdrop bot, your id: {user.user_id}"
+    client = TonCenterClient(base_url='https://toncenter.com/api/v2/',
+                             key=TONCENTER_API)
+    wal = Wallet(mnemonics=mnemonics, provider=client)
     if jetton_address:
-        body = JettonWallet().create_transfer_body(
-            to_address=Address(user.wallet),
-            jetton_amount=to_nano(amount, 'ton')
-        )
-
-    # init_query = wallet.create_init_external_message()
-    # await client.raw_send_message(init_query['message'].to_boc(False))
-
-    seqno = int((await client.raw_run_method(method='seqno', stack_data=[],
-                                             address=wallet.address.to_string()))['stack'][0][1], 16)
-
-    transfer = wallet.create_transfer_message(to_addr=jetton_address if jetton_address else wallet.address.to_string(),
-                                              amount=to_nano(0.05 if jetton_address else amount, 'ton'),
-                                              seqno=seqno, payload=body)
-    await client.raw_send_message(transfer['message'].to_boc(False))
-    await client.close()
-
+        await wal.transfer_jetton_by_jetton_wallet(destination_address=user.wallet,
+                                                   jetton_wallet=jetton_address,
+                                                   jettons_amount=amount)
+    else:
+        await wal.transfer_ton(destination_address=user.wallet,
+                               amount=amount)
 
 
 async def get_comment_message(destination_address: str, amount: int, comment: str) -> dict:
@@ -48,12 +32,12 @@ async def get_comment_message(destination_address: str, amount: int, comment: st
         'amount': str(amount),
         'payload': urlsafe_b64encode(
             begin_cell()
-            .store_uint(0, 32)  # op code for comment message
-            .store_string(comment)  # store comment
-            .end_cell()  # end cell
-            .to_boc()  # convert it to boc
+            .store_uint(0, 32)
+            .store_string(comment)
+            .end_cell()
+            .to_boc()
         )
-        .decode()  # encode it to urlsafe base64
+        .decode()
     }
 
     return data
