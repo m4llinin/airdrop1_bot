@@ -22,11 +22,12 @@ class InlineKeyboard:
 
     @classmethod
     async def list_wallets(cls) -> InlineKeyboardMarkup:
-        keyboard = []
-        wallets_list = TonConnect.get_wallets()
-        for wallet in wallets_list:
-            keyboard.append([InlineKeyboardButton(text=wallet['name'], callback_data=f'connect:{wallet["name"]}')])
-        keyboard.append([InlineKeyboardButton(text=cls.__texts['back'], callback_data='menu')])
+        keyboard = [
+            [InlineKeyboardButton(text="Wallet", callback_data=f'connect:Wallet')],
+            [InlineKeyboardButton(text="Tonkeeper", callback_data=f'connect:Tonkeeper')],
+            [InlineKeyboardButton(text="MyTonWallet", callback_data=f'connect:MyTonWallet')],
+            [InlineKeyboardButton(text=cls.__texts['back'], callback_data='menu')]
+        ]
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @classmethod
@@ -44,7 +45,7 @@ class InlineKeyboard:
         elif wallet == "Tonkeeper":
             url = "https://app.tonkeeper.com"
         elif wallet == "MyTonWallet":
-            url = "https://mytonwallet.io"
+            url = "https://mytonwallet.app"
         else:
             url = "https://tonhub.com"
 

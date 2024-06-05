@@ -27,6 +27,9 @@ AUTHORIZATION_TOKEN = env['AUTHORIZATION_TOKEN']
 COMAND_STATISTINK = env['COMAND_STATISTINK']
 MANIFEST_URL = env['MANIFEST_URL']
 MNEMONICS = env['MNEMONICS'].split(" ")
+# ['fruit', 'rug', 'frost', 'cinnamon', 'evoke', 'unfold', 'potato', 'wire', 'castle', 'squirrel', 'rather',
+# 'special', 'doctor', 'armed', 'fiction', 'disagree', 'heavy', 'culture', 'exercise', 'amount', 'exhibit',
+# 'salon', 'poet', 'unusual']
 TIMEZONE = pytz.timezone('Europe/Moscow')
 url = f"https://t.me/{env['LINK']}?start="
 LINK = url + "{}"

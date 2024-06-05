@@ -115,13 +115,13 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
                     if is_paid_fee:
                         data = await state.get_data()
                         await check_participation(data['cl'], user, airdrop, texts)
-                        return
+                    return
             elif datetime.strptime(airdrop.start_date, "%H:%M %d.%m.%Y").timestamp() == now:
                 is_paid_fee = await pay_fee(callback=callback, texts=texts, user=user, airdrop=airdrop, state=state)
                 if is_paid_fee:
                     data = await state.get_data()
                     await check_participation(data['cl'], user, airdrop, texts)
-                    return
+                return
         except Exception as e:
             logger.error(e)
             msg = (await state.get_data()).get("cl", callback)
@@ -130,4 +130,5 @@ async def claim_airdrop(callback: CallbackQuery, state: FSMContext):
                 return
             await msg.answer(text=texts['no_server'])
             return
+
     await callback.answer(text=texts['no_airdrop'], show_alert=True)
